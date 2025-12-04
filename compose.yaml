@@ -3,6 +3,6 @@
     container_name: glances_discord_bot
     restart: unless-stopped
     environment:
-      - DISCORD_TOKEN=ここに_BOT_TOKEN_を貼り付け
+      - DISCORD_TOKEN=${DISCORD_TOKEN}
       - GLANCES_API_URL=http://localhost:61208/api/4 
     network_mode: host
