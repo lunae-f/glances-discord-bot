@@ -136,7 +136,7 @@ async def server_status(interaction: discord.Interaction):
 
     # --- Embed生成 ---
     embed = discord.Embed(title="📊 Server Status", color=color_code)
-    embed.add_field(name="総合評価", value=health_rank, inline=False)
+    embed.add_field(name="ステータス", value=health_rank, inline=False)
     
     embed.add_field(
         name="CPU", 
