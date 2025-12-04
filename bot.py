@@ -8,10 +8,24 @@ import os
 TOKEN = os.getenv('DISCORD_TOKEN')
 GLANCES_API_URL = os.getenv('GLANCES_API_URL', 'http://localhost:61208/api/4')
 
-# 閾値設定 (自由に変更してください)
+# 閾値設定
 THRESHOLDS = {
-    'danger': { 'usage': 90, 'temp': 85 }, # これ以上で「警告」
-    'warning': { 'usage': 75, 'temp': 75 } # これ以上で「注意」
+    'cpu': {
+        'usage_danger': 90,  # CPU使用率 警告(赤)
+        'usage_warning': 75, # CPU使用率 注意(黄)
+        'temp_danger': 85,   # CPU温度 警告(赤)
+        'temp_warning': 75   # CPU温度 注意(黄)
+    },
+    'gpu': {
+        'usage_danger': 90,  # GPU使用率 警告(赤)
+        'usage_warning': 75, # GPU使用率 注意(黄)
+        'temp_danger': 85,   # GPU温度 警告(赤)
+        'temp_warning': 75   # GPU温度 注意(黄)
+    },
+    'memory': {
+        'usage_danger': 90,  # メモリ使用率 警告(赤)
+        'usage_warning': 80  # メモリ使用率 注意(黄)
+    }
 }
 # ----------------
 
@@ -35,42 +49,50 @@ async def fetch_glances_data(session, endpoint):
         print(f"Error fetching {endpoint}: {e}")
         return None
 
-def get_status_emoji(value, is_temp=False):
-    """値に応じて絵文字を返す"""
-    danger = THRESHOLDS['danger']['temp'] if is_temp else THRESHOLDS['danger']['usage']
-    warning = THRESHOLDS['warning']['temp'] if is_temp else THRESHOLDS['warning']['usage']
-
-    if value >= danger: return "🔴"
-    if value >= warning: return "🟡"
+def get_status_emoji(value, danger_limit, warning_limit):
+    """値としきい値を受け取って絵文字を返す"""
+    if value is None: return "⚪" # データなし
+    if value >= danger_limit: return "🔴"
+    if value >= warning_limit: return "🟡"
     return "🟢"
 
 def evaluate_health(cpu_usage, mem_usage, gpu_usage=None, cpu_temp=None, gpu_temp=None):
-    """総合評価ロジック (OR条件)"""
+    """総合評価ロジック (個別しきい値対応)"""
     
-    # 1. DANGER (警告) のチェック
-    # どれか1つでも閾値(90%や85度)を超えていたら即アウト
+    # 1. DANGER (警告) チェック
     d_reasons = []
-    t_danger = THRESHOLDS['danger']
     
-    if cpu_usage >= t_danger['usage']: d_reasons.append("CPU高負荷")
-    if mem_usage >= t_danger['usage']: d_reasons.append("メモリ不足")
-    if gpu_usage is not None and gpu_usage >= t_danger['usage']: d_reasons.append("GPU高負荷")
-    if cpu_temp is not None and isinstance(cpu_temp, (int, float)) and cpu_temp >= t_danger['temp']: d_reasons.append("CPU高温")
-    if gpu_temp is not None and isinstance(gpu_temp, (int, float)) and gpu_temp >= t_danger['temp']: d_reasons.append("GPU高温")
+    if cpu_usage >= THRESHOLDS['cpu']['usage_danger']: 
+        d_reasons.append("CPU高負荷")
+    if cpu_temp is not None and cpu_temp >= THRESHOLDS['cpu']['temp_danger']:
+        d_reasons.append("CPU高温")
+        
+    if gpu_usage is not None and gpu_usage >= THRESHOLDS['gpu']['usage_danger']:
+        d_reasons.append("GPU高負荷")
+    if gpu_temp is not None and gpu_temp >= THRESHOLDS['gpu']['temp_danger']:
+        d_reasons.append("GPU高温")
+        
+    if mem_usage >= THRESHOLDS['memory']['usage_danger']:
+        d_reasons.append("メモリ不足")
 
     if d_reasons:
         return f"⚠️ **WARNING** ({', '.join(d_reasons)})", 0xff0000 # 赤色
 
-    # 2. CAUTION (注意) のチェック
-    # 警告ではないが、閾値(75%や75度)を超えているものがあるか
+    # 2. CAUTION (注意) チェック
     w_reasons = []
-    t_warning = THRESHOLDS['warning']
-
-    if cpu_usage >= t_warning['usage']: w_reasons.append("CPU負荷気味")
-    if mem_usage >= 80: w_reasons.append("メモリ多め") # メモリは80%を閾値に固定
-    if gpu_usage is not None and gpu_usage >= t_warning['usage']: w_reasons.append("GPU負荷気味")
-    if cpu_temp is not None and isinstance(cpu_temp, (int, float)) and cpu_temp >= t_warning['temp']: w_reasons.append("CPU温度上昇")
-    if gpu_temp is not None and isinstance(gpu_temp, (int, float)) and gpu_temp >= t_warning['temp']: w_reasons.append("GPU温度上昇")
+    
+    if cpu_usage >= THRESHOLDS['cpu']['usage_warning']:
+        w_reasons.append("CPU負荷気味")
+    if cpu_temp is not None and cpu_temp >= THRESHOLDS['cpu']['temp_warning']:
+        w_reasons.append("CPU温度上昇")
+        
+    if gpu_usage is not None and gpu_usage >= THRESHOLDS['gpu']['usage_warning']:
+        w_reasons.append("GPU負荷気味")
+    if gpu_temp is not None and gpu_temp >= THRESHOLDS['gpu']['temp_warning']:
+        w_reasons.append("GPU温度上昇")
+        
+    if mem_usage >= THRESHOLDS['memory']['usage_warning']:
+        w_reasons.append("メモリ多め")
 
     if w_reasons:
         return f"🟡 **CAUTION** ({', '.join(w_reasons)})", 0xffff00 # 黄色
@@ -101,13 +123,14 @@ async def server_status(interaction: discord.Interaction):
     # --- データ抽出 ---
     cpu_usage = cpu_data.get('total', 0)
 
-    # CPU温度 (Package id 0)
+    # CPU温度
     cpu_temp_val = None
     cpu_temp_str = "N/A"
     for sensor in sensors_data:
         if 'Package id 0' in sensor.get('label', ''):
             cpu_temp_val = sensor.get('value')
-            cpu_temp_str = f"{cpu_temp_val}°C"
+            if cpu_temp_val is not None:
+                cpu_temp_str = f"{cpu_temp_val}°C"
             break
     
     # GPU情報
@@ -138,21 +161,29 @@ async def server_status(interaction: discord.Interaction):
     embed = discord.Embed(title="📊 Server Status", color=color_code)
     embed.add_field(name="ステータス", value=health_rank, inline=False)
     
+    # CPU
+    cpu_emoji_usage = get_status_emoji(cpu_usage, THRESHOLDS['cpu']['usage_danger'], THRESHOLDS['cpu']['usage_warning'])
+    cpu_emoji_temp = get_status_emoji(cpu_temp_val, THRESHOLDS['cpu']['temp_danger'], THRESHOLDS['cpu']['temp_warning'])
     embed.add_field(
         name="CPU", 
-        value=f"使用率: {get_status_emoji(cpu_usage)} **{cpu_usage}%**\n温度: {get_status_emoji(cpu_temp_val or 0, True)} **{cpu_temp_str}**", 
+        value=f"使用率: {cpu_emoji_usage} **{cpu_usage}%**\n温度: {cpu_emoji_temp} **{cpu_temp_str}**", 
         inline=True
     )
     
+    # GPU
+    gpu_emoji_usage = get_status_emoji(gpu_usage_val, THRESHOLDS['gpu']['usage_danger'], THRESHOLDS['gpu']['usage_warning'])
+    gpu_emoji_temp = get_status_emoji(gpu_temp_val, THRESHOLDS['gpu']['temp_danger'], THRESHOLDS['gpu']['temp_warning'])
     embed.add_field(
         name="GPU", 
-        value=f"使用率: {get_status_emoji(gpu_usage_val or 0)} **{gpu_usage_str}**\n温度: {get_status_emoji(gpu_temp_val or 0, True)} **{gpu_temp_str}**", 
+        value=f"使用率: {gpu_emoji_usage} **{gpu_usage_str}**\n温度: {gpu_emoji_temp} **{gpu_temp_str}**", 
         inline=True
     )
 
+    # Memory
+    mem_emoji = get_status_emoji(mem_usage, THRESHOLDS['memory']['usage_danger'], THRESHOLDS['memory']['usage_warning'])
     embed.add_field(
         name="Memory", 
-        value=f"使用率: {get_status_emoji(mem_usage)} **{mem_usage}%**\n({mem_used_gb}/{mem_total_gb} GB)", 
+        value=f"使用率: {mem_emoji} **{mem_usage}%**\n({mem_used_gb}/{mem_total_gb} GB)", 
         inline=True
     )
     
