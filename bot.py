@@ -13,18 +13,18 @@ THRESHOLDS = {
     'cpu': {
         'usage_danger': 90,  # CPU使用率 警告(赤)
         'usage_warning': 75, # CPU使用率 注意(黄)
-        'temp_danger': 85,   # CPU温度 警告(赤)
-        'temp_warning': 75   # CPU温度 注意(黄)
+        'temp_danger': 100,   # CPU温度 警告(赤)
+        'temp_warning': 80   # CPU温度 注意(黄)
     },
     'gpu': {
         'usage_danger': 90,  # GPU使用率 警告(赤)
-        'usage_warning': 75, # GPU使用率 注意(黄)
-        'temp_danger': 85,   # GPU温度 警告(赤)
-        'temp_warning': 75   # GPU温度 注意(黄)
+        'usage_warning': 80, # GPU使用率 注意(黄)
+        'temp_danger': 90,   # GPU温度 警告(赤)
+        'temp_warning': 80   # GPU温度 注意(黄)
     },
     'memory': {
         'usage_danger': 90,  # メモリ使用率 警告(赤)
-        'usage_warning': 80  # メモリ使用率 注意(黄)
+        'usage_warning': 75  # メモリ使用率 注意(黄)
     }
 }
 # ----------------
