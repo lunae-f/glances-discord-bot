@@ -1,3 +1,4 @@
+services:
   discord-bot:
     build: .
     container_name: glances_discord_bot
