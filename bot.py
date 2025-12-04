@@ -76,7 +76,7 @@ def evaluate_health(cpu_usage, mem_usage, gpu_usage=None, cpu_temp=None, gpu_tem
         d_reasons.append("メモリ不足")
 
     if d_reasons:
-        return f"⚠️ **WARNING** ({', '.join(d_reasons)})", 0xff0000 # 赤色
+        return f"📛 **WARNING** ({', '.join(d_reasons)})", 0xff0000 # 赤色
 
     # 2. CAUTION (注意) チェック
     w_reasons = []
@@ -95,7 +95,7 @@ def evaluate_health(cpu_usage, mem_usage, gpu_usage=None, cpu_temp=None, gpu_tem
         w_reasons.append("メモリ多め")
 
     if w_reasons:
-        return f"🟡 **CAUTION** ({', '.join(w_reasons)})", 0xffff00 # 黄色
+        return f"⚠️ **CAUTION** ({', '.join(w_reasons)})", 0xffff00 # 黄色
 
     # 3. 正常
     return "✅ **GOOD** (安定)", 0x00ff00 # 緑色
