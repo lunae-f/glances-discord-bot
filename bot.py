@@ -17,7 +17,7 @@ THRESHOLDS = {
         'temp_warning': 80   # CPU温度 注意(黄)
     },
     'gpu': {
-        'usage_danger': 90,  # GPU使用率 警告(赤)
+        'usage_danger': 100,  # GPU使用率 警告(赤)
         'usage_warning': 80, # GPU使用率 注意(黄)
         'temp_danger': 90,   # GPU温度 警告(赤)
         'temp_warning': 80   # GPU温度 注意(黄)
